@@ -1,0 +1,25 @@
+{
+  "kunden": [
+    {
+      "id": 1,
+      "name": "Müller GmbH",
+      "kontakt": "info@mueller-gmbh.de",
+      "tags": ["Hosting", "Wartung"],
+      "domains": ["mueller-gmbh.de", "mueller-shop.de"]
+    },
+    {
+      "id": 2,
+      "name": "Bäckerei Schneider",
+      "kontakt": "kontakt@baeckerei-schneider.de",
+      "tags": ["Hosting", "E-Mail"],
+      "domains": ["baeckerei-schneider.de"]
+    },
+    {
+      "id": 3,
+      "name": "Autohaus Weber",
+      "kontakt": "verkauf@autohaus-weber.de",
+      "tags": ["Webdesign"],
+      "domains": []
+    }
+  ]
+}

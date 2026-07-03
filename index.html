@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain-Verwaltung</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>Domain-Verwaltung</h1>
+      <p id="stats"></p>
+    </div>
+    <button class="btn-primaer" onclick="toggleCreateForm()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Kunde anlegen
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- Neuer Kunde -->
+  <div id="createForm" class="karte">
+    <h2>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Neuen Kunden anlegen
+    </h2>
+    <div class="formular-zeile">
+      <input type="text" id="newName" placeholder="Firmenname *" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
+      <input type="email" id="newContact" placeholder="E-Mail (optional)" onkeydown="if(event.key==='Enter')createCustomer()">
+    </div>
+    <div id="tagCheckboxes" class="tag-checkbox-gruppe"></div>
+    <button class="btn-dunkel" id="btnSave" onclick="createCustomer()" disabled>Speichern</button>
+  </div>
+
+  <!-- Suche -->
+  <div class="suche-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="text" id="search" placeholder="Kunden oder Domains suchen …" oninput="render()">
+    <button id="clearSearch" onclick="clearSearch()" title="Suche leeren">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  <!-- Tag-Filter -->
+  <div id="tagFilterBar" class="tag-filter-bar"></div>
+
+  <!-- Kundenliste -->
+  <div id="customerList"></div>
+</main>
+
+<script src="api.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
