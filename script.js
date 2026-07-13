@@ -244,9 +244,10 @@ async function init() {
   } catch (error) {
     list.innerHTML = `<div class="karte leer-hinweis" style="color:#dc2626">
       Daten konnten nicht geladen werden: ${esc(error.message)}<br><br>
-      Hinweis: Im Testmodus muss die Seite über einen lokalen Server laufen
-      (z. B. <code>python -m http.server</code>). Im API-Modus prüfe API_BASE in api.js
-      und ob der Dienst CORS für diese Seite erlaubt.
+      Prüfe, ob der API-Dienst läuft, ob API_BASE in api.js stimmt
+      (aktuell: <code>${esc(API_BASE)}</code>) und ob der Dienst CORS
+      für diese Seite erlaubt.
+      <br><br><button class="btn-zuweisen" onclick="init()">Erneut versuchen</button>
     </div>`;
   }
 }
