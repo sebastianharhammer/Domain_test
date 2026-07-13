@@ -24,7 +24,7 @@
 //   DELETE /monitors/:id                     → delete monitor
 // =====================================================================
 
-const API_BASE = "http://localhost:8080/api/v1"; // adjust host/port to your service
+const API_BASE = "https://domain-test-4a08f-default-rtdb.europe-west1.firebasedatabase.app/"; // adjust host/port to your service
 
 async function _request(path, options = {}) {
   const response = await fetch(API_BASE + path, {
