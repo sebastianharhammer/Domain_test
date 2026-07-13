@@ -317,3 +317,148 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   padding: 6px 8px;
 }
 .tag-filter-reset:hover { color: var(--slate-900); }
+
+/* ---------- Kopf-Aktionen & Inline-Bearbeitung ---------- */
+.kopf-aktionen { display: flex; gap: 2px; }
+.btn-bearbeiten {
+  background: none;
+  color: var(--slate-300);
+  padding: 4px;
+  line-height: 0;
+}
+.btn-bearbeiten:hover { color: var(--teal-600); }
+.edit-formular {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.edit-formular input { flex: 1 1 160px; }
+
+/* ---------- Domain-Chip als Button / Account-Details ---------- */
+.domain-chip { cursor: pointer; }
+.domain-chip.aktiv {
+  background: var(--teal-600);
+  border-color: var(--teal-600);
+  color: #fff;
+}
+.account-detail {
+  margin: 10px 16px 0;
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  padding: 12px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  font-size: 0.8rem;
+  align-items: baseline;
+}
+.detail-label { color: var(--slate-500); white-space: nowrap; }
+.detail-grid code {
+  background: #fff;
+  border: 1px solid var(--slate-200);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+.detail-hinweis { color: var(--slate-500); font-size: 0.75rem; }
+.detail-aktionen {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.btn-gefahr {
+  background: #fff;
+  color: var(--red-600);
+  border: 1px solid #fecaca;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 7px 12px;
+}
+.btn-gefahr:hover { background: #fef2f2; }
+
+/* ---------- Gültigkeitszeitraum ---------- */
+.zeitraum-toggle {
+  background: none;
+  color: var(--slate-500);
+  font-size: 0.75rem;
+  padding: 6px 0 0;
+  text-align: left;
+}
+.zeitraum-toggle:hover { color: var(--teal-700, #0f766e); }
+.zeitraum-zeile {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.zeitraum-zeile label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--slate-500);
+}
+.zeitraum-zeile input[type="date"] {
+  font: inherit;
+  font-size: 0.8rem;
+  border: 1px solid var(--slate-200);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: var(--slate-50);
+}
+
+/* ---------- Monitore ---------- */
+.monitor-bereich {
+  border-top: 1px solid var(--slate-100);
+  padding: 8px 16px 12px;
+}
+.monitor-toggle {
+  background: none;
+  color: var(--slate-500);
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+.monitor-toggle:hover { color: var(--slate-900); }
+.monitor-liste { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.monitor-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.monitor-schalter input { accent-color: var(--teal-600); cursor: pointer; }
+.monitor-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.monitor-name { font-size: 0.85rem; font-weight: 500; }
+.monitor-endpoint {
+  font-size: 0.72rem;
+  color: var(--slate-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.monitor-formular {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.monitor-formular input {
+  flex: 1 1 140px;
+  background: var(--slate-50);
+  border-color: var(--slate-200);
+  padding: 7px 10px;
+  font-size: 0.8rem;
+}
