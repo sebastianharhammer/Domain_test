@@ -1,25 +1,36 @@
 {
-  "kunden": [
+  "customers": [
+    { "id": "c1", "name": "Müller GmbH", "erpID": 10041, "createdAt": "2026-01-12T09:00:00Z", "updatedAt": "2026-01-12T09:00:00Z" },
+    { "id": "c2", "name": "Bäckerei Schneider", "erpID": 10058, "createdAt": "2026-02-03T14:30:00Z", "updatedAt": "2026-02-03T14:30:00Z" },
+    { "id": "c3", "name": "Autohaus Weber", "erpID": 10073, "createdAt": "2026-03-21T11:15:00Z", "updatedAt": "2026-03-21T11:15:00Z" }
+  ],
+  "accounts": [
     {
-      "id": 1,
-      "name": "Müller GmbH",
-      "kontakt": "info@mueller-gmbh.de",
-      "tags": ["Hosting", "Wartung"],
-      "domains": ["mueller-gmbh.de", "mueller-shop.de"]
+      "id": "a1",
+      "customerID": "c1",
+      "commonName": "mueller-gmbh.de",
+      "dnsSubdomain": "f3a9b2.acme-dns.example.com",
+      "dnsUsername": "u-f3a9b2",
+      "createdAt": "2026-01-12T09:05:00Z",
+      "updatedAt": "2026-01-12T09:05:00Z"
     },
     {
-      "id": 2,
-      "name": "Bäckerei Schneider",
-      "kontakt": "kontakt@baeckerei-schneider.de",
-      "tags": ["Hosting", "E-Mail"],
-      "domains": ["baeckerei-schneider.de"]
+      "id": "a2",
+      "customerID": "c1",
+      "commonName": "mueller-shop.de",
+      "dnsSubdomain": "7c1d4e.acme-dns.example.com",
+      "dnsUsername": "u-7c1d4e",
+      "createdAt": "2026-01-15T16:40:00Z",
+      "updatedAt": "2026-01-15T16:40:00Z"
     },
     {
-      "id": 3,
-      "name": "Autohaus Weber",
-      "kontakt": "verkauf@autohaus-weber.de",
-      "tags": ["Webdesign"],
-      "domains": []
+      "id": "a3",
+      "customerID": "c2",
+      "commonName": "baeckerei-schneider.de",
+      "dnsSubdomain": "9e8f0a.acme-dns.example.com",
+      "dnsUsername": "u-9e8f0a",
+      "createdAt": "2026-02-03T14:35:00Z",
+      "updatedAt": "2026-02-03T14:35:00Z"
     }
   ]
 }

@@ -1,25 +1,26 @@
 // =====================================================================
-// api.js – Data layer
+// api.js – Data layer for the ACME DNS Manager API Service
 //
-// Current: mock mode. Data is loaded once from kunden.json and then
-// only modified in memory (changes are lost on page reload – fine
-// for testing).
+// The API models domains as "accounts": each account belongs to a
+// customer and carries the domain in its commonName field.
 //
-// Later: set USE_MOCK to false and adjust API_BASE. The REST calls
-// below are already prepared and expect these endpoints:
+// Endpoints used (basePath /api/v1):
+//   GET    /customers                        → list all customers
+//   POST   /customers                        → create customer { name, erpID }
+//   DELETE /customers/:id                    → delete customer
+//   GET    /accounts                         → list all accounts
+//   POST   /customers/:customerId/accounts   → create account { commonName }
+//   DELETE /accounts/:id                     → delete account
 //
-//   GET    /kunden                          → list all customers
-//   POST   /kunden                          → create customer
-//   DELETE /kunden/:id                      → delete customer
-//   POST   /kunden/:id/domains              → assign domain { "domain": "..." }
-//   DELETE /kunden/:id/domains/:domain      → remove domain
+// USE_MOCK = true  → loads kunden.json, keeps changes in memory (testing)
+// USE_MOCK = false → talks to the real API at API_BASE
 //
-// script.js only calls these functions and does not need to be
-// touched when switching to the real API.
+// script.js only calls the functions of the `api` object and does not
+// need to change when switching modes.
 // =====================================================================
 
 const USE_MOCK = true;
-const API_BASE = "http://localhost:3000/api"; // adjust later
+const API_BASE = "http://localhost:8080/api/v1"; // adjust host/port to your service
 
 // ---------------------------------------------------------------------
 // Mock mode: load kunden.json, keep changes in memory
@@ -31,49 +32,71 @@ async function _loadMockData() {
   if (_mockData === null) {
     const response = await fetch("kunden.json");
     if (!response.ok) throw new Error("kunden.json konnte nicht geladen werden (" + response.status + ")");
-    const json = await response.json();
-    // Ensure every customer has a tags array
-    _mockData = json.kunden.map(c => ({ tags: [], ...c }));
+    _mockData = await response.json();
   }
   return _mockData;
 }
 
+function _randomHex(length) {
+  return [...crypto.getRandomValues(new Uint8Array(length))]
+    .map(b => b.toString(16).padStart(2, "0")).join("").slice(0, length);
+}
+
 const mockApi = {
   async getCustomers() {
-    return structuredClone(await _loadMockData());
+    const data = await _loadMockData();
+    return structuredClone(data.customers);
   },
 
-  async createCustomer(name, contact, tags) {
+  async getAccounts() {
     const data = await _loadMockData();
-    const customer = { id: Date.now(), name, kontakt: contact, tags, domains: [] };
-    data.push(customer);
+    return structuredClone(data.accounts);
+  },
+
+  async createCustomer(name, erpID) {
+    const data = await _loadMockData();
+    const now = new Date().toISOString();
+    const customer = {
+      id: "c" + Date.now(),
+      name,
+      ...(erpID !== null ? { erpID } : {}),
+      createdAt: now,
+      updatedAt: now,
+    };
+    data.customers.push(customer);
     return structuredClone(customer);
   },
 
   async deleteCustomer(id) {
     const data = await _loadMockData();
-    _mockData = data.filter(c => c.id !== id);
+    data.customers = data.customers.filter(c => c.id !== id);
+    data.accounts = data.accounts.filter(a => a.customerID !== id);
   },
 
-  async addDomain(customerId, domain) {
+  async createAccount(customerId, commonName) {
     const data = await _loadMockData();
-    const customer = data.find(c => c.id === customerId);
-    if (!customer) throw new Error("Kunde nicht gefunden.");
-    customer.domains.push(domain);
-    return structuredClone(customer);
+    const now = new Date().toISOString();
+    const account = {
+      id: "a" + Date.now(),
+      customerID: customerId,
+      commonName,
+      dnsSubdomain: _randomHex(6) + ".acme-dns.example.com",
+      dnsUsername: "u-" + _randomHex(6),
+      createdAt: now,
+      updatedAt: now,
+    };
+    data.accounts.push(account);
+    return structuredClone(account);
   },
 
-  async removeDomain(customerId, domain) {
+  async deleteAccount(id) {
     const data = await _loadMockData();
-    const customer = data.find(c => c.id === customerId);
-    if (!customer) throw new Error("Kunde nicht gefunden.");
-    customer.domains = customer.domains.filter(d => d !== domain);
-    return structuredClone(customer);
+    data.accounts = data.accounts.filter(a => a.id !== id);
   },
 };
 
 // ---------------------------------------------------------------------
-// REST mode: ready-made calls for the future API
+// REST mode: calls against the ACME DNS Manager API
 // ---------------------------------------------------------------------
 
 async function _request(path, options = {}) {
@@ -84,34 +107,35 @@ async function _request(path, options = {}) {
   if (!response.ok) {
     throw new Error("API-Fehler " + response.status + " bei " + path);
   }
-  // DELETE responses often have no body
+  // 204 No Content and empty bodies
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
 
 const restApi = {
   getCustomers: () =>
-    _request("/kunden"),
+    _request("/customers"),
 
-  createCustomer: (name, contact, tags) =>
-    _request("/kunden", {
+  getAccounts: () =>
+    _request("/accounts"),
+
+  createCustomer: (name, erpID) =>
+    _request("/customers", {
       method: "POST",
-      body: JSON.stringify({ name, kontakt: contact, tags }),
+      body: JSON.stringify(erpID !== null ? { name, erpID } : { name }),
     }),
 
   deleteCustomer: (id) =>
-    _request("/kunden/" + id, { method: "DELETE" }),
+    _request("/customers/" + encodeURIComponent(id), { method: "DELETE" }),
 
-  addDomain: (customerId, domain) =>
-    _request("/kunden/" + customerId + "/domains", {
+  createAccount: (customerId, commonName) =>
+    _request("/customers/" + encodeURIComponent(customerId) + "/accounts", {
       method: "POST",
-      body: JSON.stringify({ domain }),
+      body: JSON.stringify({ commonName }),
     }),
 
-  removeDomain: (customerId, domain) =>
-    _request("/kunden/" + customerId + "/domains/" + encodeURIComponent(domain), {
-      method: "DELETE",
-    }),
+  deleteAccount: (id) =>
+    _request("/accounts/" + encodeURIComponent(id), { method: "DELETE" }),
 };
 
 // ---------------------------------------------------------------------

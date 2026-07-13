@@ -1,14 +1,8 @@
 const DOMAIN_RE = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.[a-zA-Z0-9-]{1,63})*\.[a-zA-Z]{2,}$/;
 
-// Available tags – extend this list as needed. The checkboxes in the
-// create form and the filter bar are generated from it automatically.
-const AVAILABLE_TAGS = ["Hosting", "E-Mail", "Webdesign", "Wartung", "SEO"];
-
-// Local copy of the data – filled via the data layer (api.js)
-let customers = [];
-
-// Active tag filters (customer must have ALL selected tags)
-let activeTagFilters = [];
+// Local state – filled via the data layer (api.js)
+let customers = [];          // customer.Customer[]
+let accountsByCustomer = {}; // customerID → account.Account[]
 
 // Remembers per-customer inputs & errors so they survive re-rendering
 const domainInputs = {};
@@ -16,12 +10,16 @@ const errorMessages = {};
 
 function esc(text) {
   const div = document.createElement("div");
-  div.textContent = text;
+  div.textContent = String(text);
   return div.innerHTML;
 }
 
+function accountsOf(customerId) {
+  return accountsByCustomer[customerId] || [];
+}
+
 // ------------------------------------------------------------------
-// Create customer
+// Create / delete customer
 // ------------------------------------------------------------------
 
 function toggleCreateForm() {
@@ -37,22 +35,20 @@ function validateCreateForm() {
     document.getElementById("newName").value.trim() === "";
 }
 
-function getSelectedTags() {
-  return [...document.querySelectorAll("#createForm .tag-checkbox input:checked")]
-    .map(cb => cb.value);
-}
-
 async function createCustomer() {
   const name = document.getElementById("newName").value.trim();
   if (!name) return;
-  const contact = document.getElementById("newContact").value.trim();
-  const tags = getSelectedTags();
+  const erpRaw = document.getElementById("newErpId").value.trim();
+  const erpID = erpRaw === "" ? null : parseInt(erpRaw, 10);
+  if (erpRaw !== "" && Number.isNaN(erpID)) {
+    showGlobalError("Die ERP-ID muss eine Zahl sein.");
+    return;
+  }
   try {
-    const newCustomer = await api.createCustomer(name, contact, tags);
+    const newCustomer = await api.createCustomer(name, erpID);
     customers.push(newCustomer);
     document.getElementById("newName").value = "";
-    document.getElementById("newContact").value = "";
-    document.querySelectorAll("#createForm .tag-checkbox input").forEach(cb => (cb.checked = false));
+    document.getElementById("newErpId").value = "";
     document.getElementById("createForm").classList.remove("offen");
     validateCreateForm();
     render();
@@ -65,6 +61,7 @@ async function deleteCustomer(id) {
   try {
     await api.deleteCustomer(id);
     customers = customers.filter(c => c.id !== id);
+    delete accountsByCustomer[id];
     delete domainInputs[id];
     delete errorMessages[id];
     render();
@@ -74,18 +71,18 @@ async function deleteCustomer(id) {
 }
 
 // ------------------------------------------------------------------
-// Domains
+// Domains (= accounts in the API, domain lives in commonName)
 // ------------------------------------------------------------------
 
 function findDomainOwner(domain) {
   for (const c of customers) {
-    if (c.domains.includes(domain)) return c.name;
+    if (accountsOf(c.id).some(a => a.commonName === domain)) return c.name;
   }
   return null;
 }
 
 async function assignDomain(customerId) {
-  const field = document.getElementById("domainInput-" + customerId);
+  const field = document.getElementById("domainInput-" + CSS.escape(customerId));
   const raw = field.value.trim().toLowerCase()
     .replace(/^https?:\/\//, "")
     .replace(/\/.*$/, "");
@@ -106,12 +103,12 @@ async function assignDomain(customerId) {
   }
 
   try {
-    const updated = await api.addDomain(customerId, raw);
-    customers = customers.map(c => (c.id === customerId ? updated : c));
+    const account = await api.createAccount(customerId, raw);
+    accountsByCustomer[customerId] = [...accountsOf(customerId), account];
     domainInputs[customerId] = "";
     errorMessages[customerId] = "";
     render();
-    document.getElementById("domainInput-" + customerId).focus();
+    document.getElementById("domainInput-" + CSS.escape(customerId)).focus();
   } catch (error) {
     errorMessages[customerId] = "Zuweisung fehlgeschlagen: " + error.message;
     domainInputs[customerId] = field.value;
@@ -119,10 +116,10 @@ async function assignDomain(customerId) {
   }
 }
 
-async function removeDomain(customerId, domain) {
+async function removeAccount(customerId, accountId) {
   try {
-    const updated = await api.removeDomain(customerId, domain);
-    customers = customers.map(c => (c.id === customerId ? updated : c));
+    await api.deleteAccount(accountId);
+    accountsByCustomer[customerId] = accountsOf(customerId).filter(a => a.id !== accountId);
     render();
   } catch (error) {
     errorMessages[customerId] = "Entfernen fehlgeschlagen: " + error.message;
@@ -134,40 +131,18 @@ function onDomainInputChanged(customerId, value) {
   domainInputs[customerId] = value;
   if (errorMessages[customerId]) {
     errorMessages[customerId] = "";
-    document.getElementById("error-" + customerId).textContent = "";
+    const el = document.getElementById("error-" + CSS.escape(customerId));
+    if (el) el.textContent = "";
   }
 }
 
 // ------------------------------------------------------------------
-// Search & tag filter
+// Search
 // ------------------------------------------------------------------
 
 function clearSearch() {
   document.getElementById("search").value = "";
   render();
-}
-
-function toggleTagFilter(tag) {
-  if (activeTagFilters.includes(tag)) {
-    activeTagFilters = activeTagFilters.filter(t => t !== tag);
-  } else {
-    activeTagFilters.push(tag);
-  }
-  render();
-}
-
-function renderTagFilterBar() {
-  document.getElementById("tagFilterBar").innerHTML =
-    `<span class="filter-label">Filter:</span>` +
-    AVAILABLE_TAGS.map(tag => `
-      <button
-        class="tag-filter ${activeTagFilters.includes(tag) ? "aktiv" : ""}"
-        onclick="toggleTagFilter('${esc(tag)}')"
-      >${esc(tag)}</button>
-    `).join("") +
-    (activeTagFilters.length
-      ? `<button class="tag-filter-reset" onclick="activeTagFilters=[];render()">Zurücksetzen</button>`
-      : "");
 }
 
 // ------------------------------------------------------------------
@@ -185,25 +160,13 @@ function render() {
   const query = document.getElementById("search").value.trim().toLowerCase();
   document.getElementById("clearSearch").style.display = query ? "block" : "none";
 
-  renderTagFilterBar();
+  const filtered = !query ? customers : customers.filter(c =>
+    c.name.toLowerCase().includes(query) ||
+    String(c.erpID ?? "").includes(query) ||
+    accountsOf(c.id).some(a => a.commonName.includes(query))
+  );
 
-  let filtered = customers;
-
-  if (query) {
-    filtered = filtered.filter(c =>
-      c.name.toLowerCase().includes(query) ||
-      c.kontakt.toLowerCase().includes(query) ||
-      c.domains.some(d => d.includes(query))
-    );
-  }
-
-  if (activeTagFilters.length) {
-    filtered = filtered.filter(c =>
-      activeTagFilters.every(tag => (c.tags || []).includes(tag))
-    );
-  }
-
-  const totalDomains = customers.reduce((sum, c) => sum + c.domains.length, 0);
+  const totalDomains = Object.values(accountsByCustomer).reduce((sum, list) => sum + list.length, 0);
   document.getElementById("stats").textContent =
     `${customers.length} Kunden · ${totalDomains} Domains zugewiesen`;
 
@@ -213,7 +176,7 @@ function render() {
     list.innerHTML = `<div class="karte leer-hinweis">${
       customers.length === 0
         ? "Noch keine Kunden. Lege oben den ersten Kunden an."
-        : "Keine Treffer für diese Suche bzw. diesen Filter."
+        : "Keine Treffer für diese Suche."
     }</div>`;
     return;
   }
@@ -223,38 +186,34 @@ function render() {
       <div class="kunde-kopf">
         <div>
           <h3>${esc(c.name)}</h3>
-          ${c.kontakt ? `<p class="kunde-kontakt">${esc(c.kontakt)}</p>` : ""}
-          ${(c.tags || []).length ? `
-            <div class="tag-liste">
-              ${c.tags.map(t => `<span class="tag-chip">${esc(t)}</span>`).join("")}
-            </div>` : ""}
+          ${c.erpID != null ? `<p class="kunde-kontakt">ERP-ID: ${esc(c.erpID)}</p>` : ""}
         </div>
-        <button class="btn-loeschen" title="Kunden löschen" onclick="deleteCustomer(${c.id})">
+        <button class="btn-loeschen" title="Kunden löschen" onclick="deleteCustomer('${esc(c.id)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
         </button>
       </div>
       <div class="domain-liste">
-        ${c.domains.length === 0
+        ${accountsOf(c.id).length === 0
           ? `<span class="keine-domains">Keine Domains zugewiesen</span>`
-          : c.domains.map(d => `
-            <span class="domain-chip">
+          : accountsOf(c.id).map(a => `
+            <span class="domain-chip" title="${a.dnsSubdomain ? "DNS-Subdomain: " + esc(a.dnsSubdomain) : ""}">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/></svg>
-              ${esc(d)}
-              <button title="Domain entfernen" onclick="removeDomain(${c.id}, '${esc(d)}')">
+              ${esc(a.commonName)}
+              <button title="Domain entfernen" onclick="removeAccount('${esc(c.id)}', '${esc(a.id)}')">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </span>`).join("")}
       </div>
       <div class="zuweisen-bereich">
         <div class="zuweisen-zeile">
-          <input type="text" id="domainInput-${c.id}"
+          <input type="text" id="domainInput-${esc(c.id)}"
             placeholder="Domain zuweisen, z. B. beispiel.de"
             value="${esc(domainInputs[c.id] || "")}"
-            oninput="onDomainInputChanged(${c.id}, this.value)"
-            onkeydown="if(event.key==='Enter')assignDomain(${c.id})">
-          <button class="btn-zuweisen" onclick="assignDomain(${c.id})">Zuweisen</button>
+            oninput="onDomainInputChanged('${esc(c.id)}', this.value)"
+            onkeydown="if(event.key==='Enter')assignDomain('${esc(c.id)}')">
+          <button class="btn-zuweisen" onclick="assignDomain('${esc(c.id)}')">Zuweisen</button>
         </div>
-        <p class="fehler" id="error-${c.id}">${
+        <p class="fehler" id="error-${esc(c.id)}">${
           errorMessages[c.id]
             ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> ${esc(errorMessages[c.id])}`
             : ""
@@ -265,29 +224,29 @@ function render() {
 }
 
 // ------------------------------------------------------------------
-// Startup: build tag checkboxes, load data via the data layer, render
+// Startup: load customers and accounts in parallel, group, render
 // ------------------------------------------------------------------
 
-function buildTagCheckboxes() {
-  document.getElementById("tagCheckboxes").innerHTML = AVAILABLE_TAGS.map(tag => `
-    <label class="tag-checkbox">
-      <input type="checkbox" value="${esc(tag)}"> ${esc(tag)}
-    </label>
-  `).join("");
-}
-
 async function init() {
-  buildTagCheckboxes();
   const list = document.getElementById("customerList");
   list.innerHTML = `<div class="karte leer-hinweis">Lade Kunden …</div>`;
   try {
-    customers = await api.getCustomers();
+    const [customerList, accountList] = await Promise.all([
+      api.getCustomers(),
+      api.getAccounts(),
+    ]);
+    customers = customerList;
+    accountsByCustomer = {};
+    for (const account of accountList) {
+      (accountsByCustomer[account.customerID] ||= []).push(account);
+    }
     render();
   } catch (error) {
     list.innerHTML = `<div class="karte leer-hinweis" style="color:#dc2626">
       Daten konnten nicht geladen werden: ${esc(error.message)}<br><br>
-      Hinweis: Die Seite muss über einen lokalen Server laufen (nicht per Doppelklick öffnen),
-      z. B. mit <code>python -m http.server</code> im Projektordner.
+      Hinweis: Im Testmodus muss die Seite über einen lokalen Server laufen
+      (z. B. <code>python -m http.server</code>). Im API-Modus prüfe API_BASE in api.js
+      und ob der Dienst CORS für diese Seite erlaubt.
     </div>`;
   }
 }

@@ -30,23 +30,19 @@
     </h2>
     <div class="formular-zeile">
       <input type="text" id="newName" placeholder="Firmenname *" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
-      <input type="email" id="newContact" placeholder="E-Mail (optional)" onkeydown="if(event.key==='Enter')createCustomer()">
+      <input type="text" id="newErpId" placeholder="ERP-ID (optional, Zahl)" inputmode="numeric" onkeydown="if(event.key==='Enter')createCustomer()">
+      <button class="btn-dunkel" id="btnSave" onclick="createCustomer()" disabled>Speichern</button>
     </div>
-    <div id="tagCheckboxes" class="tag-checkbox-gruppe"></div>
-    <button class="btn-dunkel" id="btnSave" onclick="createCustomer()" disabled>Speichern</button>
   </div>
 
   <!-- Suche -->
   <div class="suche-wrap">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    <input type="text" id="search" placeholder="Kunden oder Domains suchen …" oninput="render()">
+    <input type="text" id="search" placeholder="Kunden, ERP-IDs oder Domains suchen …" oninput="render()">
     <button id="clearSearch" onclick="clearSearch()" title="Suche leeren">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
   </div>
-
-  <!-- Tag-Filter -->
-  <div id="tagFilterBar" class="tag-filter-bar"></div>
 
   <!-- Kundenliste -->
   <div id="customerList"></div>
