@@ -10,42 +10,43 @@
 
 <header>
   <div class="header-inner">
-    <div>
+    <div id="headerWrapper">
       <h1>Domain-Verwaltung</h1>
       <p id="stats"></p>
+      <img src="./assets/Logo-sysob-400.png" id="sysobLogo">
     </div>
-    <button class="btn-primaer" onclick="toggleCreateForm()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Kunde anlegen
-    </button>
   </div>
 </header>
 
 <main>
-  <!-- Neuer Kunde -->
+  <!-- Neuer Kunde – immer sichtbar -->
   <div id="createForm" class="karte">
-    <h2>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Neuen Kunden anlegen
-    </h2>
     <div class="formular-zeile">
-      <input type="text" id="newName" placeholder="Firmenname *" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
-      <input type="text" id="newErpId" placeholder="ERP-ID (optional, Zahl)" inputmode="numeric" onkeydown="if(event.key==='Enter')createCustomer()">
-      <button class="btn-dunkel" id="btnSave" onclick="createCustomer()" disabled>Speichern</button>
+      <input type="text" id="newName" placeholder="Firmenname" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
+      <input type="text" id="newErpId" placeholder="ERP-ID" inputmode="numeric" onkeydown="if(event.key==='Enter')createCustomer()">
+      <button class="btn-dunkel" id="btnSave" onclick="createCustomer()" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Kunde anlegen
+      </button>
     </div>
   </div>
 
-  <!-- Suche -->
-  <div class="suche-wrap">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    <input type="text" id="search" placeholder="Kunden, ERP-IDs oder Domains suchen …" oninput="render()">
-    <button id="clearSearch" onclick="clearSearch()" title="Suche leeren">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
+  <div class="layout">
+    <!-- Linke Spalte: Kundenliste -->
+    <aside class="listen-spalte">
+      <div class="suche-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="search" placeholder="Suchen …" oninput="render()">
+        <button id="clearSearch" onclick="clearSearch()" title="Suche leeren">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <nav id="customerNav" class="kunden-nav"></nav>
+    </aside>
 
-  <!-- Kundenliste -->
-  <div id="customerList"></div>
+    <!-- Rechte Spalte: Details des gewählten Kunden -->
+    <section id="customerDetail"></section>
+  </div>
 </main>
 
 <script src="api.js"></script>

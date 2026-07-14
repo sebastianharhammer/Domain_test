@@ -6,16 +6,17 @@ const DOMAIN_RE = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.[a-zA-Z0-9-]{1,63})*\.[a-zA-
 let customers = [];          // customer.Customer[]
 let accountsByCustomer = {}; // customerID → account.Account[]
 let monitorsByCustomer = {}; // customerID → monitor.Monitor[]
+let selectedCustomerId = null;
 
 // UI state that must survive re-rendering
-const domainInputs = {};     // customerID → domain input value
-const domainPeriods = {};    // customerID → { open, start, end }
-const errorMessages = {};    // customerID → error text
+const domainInputs = {};
+const domainPeriods = {};
+const errorMessages = {};
 let editingCustomerId = null;
-let openAccountId = null;    // account whose detail panel is open
-const monitorsOpen = {};     // customerID → bool (section expanded)
-const monitorInputs = {};    // customerID → { displayName, endpoint, jobType }
-const revealedPasswords = {};// accountID → password returned by reset
+let openAccountId = null;
+const monitorsOpen = {};
+const monitorInputs = {};
+const revealedPasswords = {};
 
 function esc(text) {
   const div = document.createElement("div");
@@ -23,11 +24,16 @@ function esc(text) {
   return div.innerHTML;
 }
 
+// Robust lowercase conversion – never throws, even if a record is
+// missing the field (e.g. data created directly in the database).
+function low(value) {
+  return String(value ?? "").toLowerCase();
+}
+
 function accountsOf(customerId) { return accountsByCustomer[customerId] || []; }
 function monitorsOf(customerId) { return monitorsByCustomer[customerId] || []; }
 
 // Converts a yyyy-mm-dd date input value to an RFC3339 timestamp.
-// Adjust here if your API expects a different format.
 function toApiDate(value) {
   return value ? value + "T00:00:00Z" : null;
 }
@@ -41,14 +47,6 @@ function formatDate(value) {
 // ------------------------------------------------------------------
 // Create / edit / delete customer
 // ------------------------------------------------------------------
-
-function toggleCreateForm() {
-  const form = document.getElementById("createForm");
-  form.classList.toggle("offen");
-  if (form.classList.contains("offen")) {
-    document.getElementById("newName").focus();
-  }
-}
 
 function validateCreateForm() {
   document.getElementById("btnSave").disabled =
@@ -69,9 +67,9 @@ async function createCustomer() {
   try {
     const newCustomer = await api.createCustomer(name, erp.value);
     customers.push(newCustomer);
+    selectedCustomerId = newCustomer.id;
     document.getElementById("newName").value = "";
     document.getElementById("newErpId").value = "";
-    document.getElementById("createForm").classList.remove("offen");
     validateCreateForm();
     render();
   } catch (error) {
@@ -117,10 +115,18 @@ async function deleteCustomer(id) {
     delete monitorsByCustomer[id];
     delete domainInputs[id];
     delete errorMessages[id];
+    if (selectedCustomerId === id) selectedCustomerId = null;
     render();
   } catch (error) {
     showGlobalError("Kunde konnte nicht gelöscht werden: " + error.message);
   }
+}
+
+function selectCustomer(id) {
+  selectedCustomerId = id;
+  editingCustomerId = null;
+  openAccountId = null;
+  render();
 }
 
 // ------------------------------------------------------------------
@@ -177,7 +183,7 @@ async function assignDomain(customerId) {
     domainPeriods[customerId] = { open: false, start: "", end: "" };
     errorMessages[customerId] = "";
     render();
-    document.getElementById("domainInput-" + CSS.escape(customerId)).focus();
+    document.getElementById("domainInput-" + CSS.escape(customerId))?.focus();
   } catch (error) {
     errorMessages[customerId] = "Zuweisung fehlgeschlagen: " + error.message;
     domainInputs[customerId] = field.value;
@@ -302,15 +308,46 @@ function clearSearch() {
   render();
 }
 
+// All field access is defensive (low() never throws), so one record
+// with missing fields can no longer break the entire search.
+function matchesQuery(customer, query) {
+  return low(customer.name).includes(query) ||
+    String(customer.erpID ?? "").includes(query) ||
+    accountsOf(customer.id).some(a => low(a.commonName).includes(query)) ||
+    monitorsOf(customer.id).some(m =>
+      low(m.displayName).includes(query) || low(m.endpoint).includes(query));
+}
+
 // ------------------------------------------------------------------
 // Rendering
 // ------------------------------------------------------------------
 
 function showGlobalError(message) {
-  document.getElementById("customerList").insertAdjacentHTML(
+  document.getElementById("customerDetail").insertAdjacentHTML(
     "afterbegin",
     `<div class="karte leer-hinweis" style="color:#dc2626">${esc(message)}</div>`
   );
+}
+
+function renderNav(filtered, query) {
+  const nav = document.getElementById("customerNav");
+  if (customers.length === 0) {
+    nav.innerHTML = `<p class="nav-hinweis">Noch keine Kunden vorhanden.</p>`;
+    return;
+  }
+  if (filtered.length === 0) {
+    nav.innerHTML = `<p class="nav-hinweis">Keine Treffer für „${esc(query)}".</p>`;
+    return;
+  }
+  nav.innerHTML = filtered.map(c => `
+    <button class="nav-eintrag ${c.id === selectedCustomerId ? "aktiv" : ""}"
+      onclick="selectCustomer('${esc(c.id)}')">
+      <span class="nav-name">${esc(c.name || "(ohne Namen)")}</span>
+      <span class="nav-meta">
+        ${c.erpID != null ? `ERP ${esc(c.erpID)} · ` : ""}${accountsOf(c.id).length} Domain${accountsOf(c.id).length === 1 ? "" : "s"}
+      </span>
+    </button>
+  `).join("");
 }
 
 function renderAccountDetail(customerId, account) {
@@ -375,40 +412,25 @@ function renderMonitorSection(customer) {
     </div>`;
 }
 
-function render() {
-  const query = document.getElementById("search").value.trim().toLowerCase();
-  document.getElementById("clearSearch").style.display = query ? "block" : "none";
+function renderDetail() {
+  const container = document.getElementById("customerDetail");
+  const c = customers.find(x => x.id === selectedCustomerId);
 
-  const filtered = !query ? customers : customers.filter(c =>
-    c.name.toLowerCase().includes(query) ||
-    String(c.erpID ?? "").includes(query) ||
-    accountsOf(c.id).some(a => a.commonName.includes(query)) ||
-    monitorsOf(c.id).some(m =>
-      m.displayName.toLowerCase().includes(query) || m.endpoint.toLowerCase().includes(query))
-  );
-
-  const totalDomains = Object.values(accountsByCustomer).reduce((s, l) => s + l.length, 0);
-  const totalMonitors = Object.values(monitorsByCustomer).reduce((s, l) => s + l.length, 0);
-  document.getElementById("stats").textContent =
-    `${customers.length} Kunden · ${totalDomains} Domains · ${totalMonitors} Monitore`;
-
-  const list = document.getElementById("customerList");
-
-  if (filtered.length === 0) {
-    list.innerHTML = `<div class="karte leer-hinweis">${
-      customers.length === 0
-        ? "Noch keine Kunden. Lege oben den ersten Kunden an."
-        : "Keine Treffer für diese Suche."
-    }</div>`;
+  if (customers.length === 0) {
+    container.innerHTML = `<div class="karte leer-hinweis">Lege oben den ersten Kunden an.</div>`;
+    return;
+  }
+  if (!c) {
+    container.innerHTML = `<div class="karte leer-hinweis">Wähle links einen Kunden aus, um Details zu sehen.</div>`;
     return;
   }
 
-  list.innerHTML = filtered.map(c => {
-    const period = domainPeriods[c.id] || {};
-    const openAccount = accountsOf(c.id).find(a => a.id === openAccountId);
-    const isEditing = editingCustomerId === c.id;
-    return `
-    <div class="karte kunde-karte">
+  const period = domainPeriods[c.id] || {};
+  const openAccount = accountsOf(c.id).find(a => a.id === openAccountId);
+  const isEditing = editingCustomerId === c.id;
+
+  container.innerHTML = `
+    <div class="karte">
       <div class="kunde-kopf">
         ${isEditing ? `
           <div class="edit-formular">
@@ -470,7 +492,21 @@ function render() {
       </div>
       ${renderMonitorSection(c)}
     </div>`;
-  }).join("");
+}
+
+function render() {
+  const query = low(document.getElementById("search").value.trim());
+  document.getElementById("clearSearch").style.display = query ? "block" : "none";
+
+  const filtered = !query ? customers : customers.filter(c => matchesQuery(c, query));
+
+  const totalDomains = Object.values(accountsByCustomer).reduce((s, l) => s + l.length, 0);
+  const totalMonitors = Object.values(monitorsByCustomer).reduce((s, l) => s + l.length, 0);
+  document.getElementById("stats").textContent =
+    `${customers.length} Kunden · ${totalDomains} Domains · ${totalMonitors} Monitore`;
+
+  renderNav(filtered, query);
+  renderDetail();
 }
 
 // ------------------------------------------------------------------
@@ -478,8 +514,8 @@ function render() {
 // ------------------------------------------------------------------
 
 async function init() {
-  const list = document.getElementById("customerList");
-  list.innerHTML = `<div class="karte leer-hinweis">Lade Daten …</div>`;
+  const detail = document.getElementById("customerDetail");
+  detail.innerHTML = `<div class="karte leer-hinweis">Lade Daten …</div>`;
   try {
     const [customerList, accountList, monitorList] = await Promise.all([
       api.getCustomers(),
@@ -495,15 +531,20 @@ async function init() {
     for (const monitor of monitorList || []) {
       (monitorsByCustomer[monitor.customerID] ||= []).push(monitor);
     }
+    // Preselect the first customer so the detail pane is never empty
+    if (!selectedCustomerId && customers.length > 0) {
+      selectedCustomerId = customers[0].id;
+    }
     render();
   } catch (error) {
-    list.innerHTML = `<div class="karte leer-hinweis" style="color:#dc2626">
+    detail.innerHTML = `<div class="karte leer-hinweis" style="color:#dc2626">
       Daten konnten nicht geladen werden: ${esc(error.message)}<br><br>
       Prüfe, ob der API-Dienst läuft, ob API_BASE in api.js stimmt
       (aktuell: <code>${esc(API_BASE)}</code>) und ob der Dienst CORS
       für diese Seite erlaubt.
       <br><br><button class="btn-zuweisen" onclick="init()">Erneut versuchen</button>
     </div>`;
+    document.getElementById("customerNav").innerHTML = "";
   }
 }
 

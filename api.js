@@ -1,53 +1,46 @@
 // =====================================================================
-// api.js – Firebase Realtime Database adapter (for testing)
+// api.js – Client for the ACME DNS Manager API Service
 //
-// Temporary replacement for the ACME DNS Manager API. Exposes the same
-// `api` object as api-acme.js, so script.js works unchanged. When the
-// real API is ready, simply restore api-acme.js as api.js.
+// The API models domains as "accounts": each account belongs to a
+// customer and carries the domain in its commonName field. Accounts
+// can have an optional validity period (start / end) and their DNS
+// password can be reset. Customers can also have monitors.
 //
-// Firebase RTDB specifics handled here:
-//   - every path must end in ".json"
-//   - GET returns an object keyed by push-IDs (or null) → converted to arrays
-//   - POST returns only { "name": "<generated-key>" }
-//   - there is no backend logic, so dnsSubdomain / dnsUsername /
-//     dnsPassword and timestamps are generated CLIENT-SIDE here.
-//     The real ACME backend will do this itself later.
+// Endpoints used (basePath /api/v1):
+//   GET    /customers                        → list all customers
+//   POST   /customers                        → create customer { name, erpID }
+//   PATCH  /customers/:id                    → update customer { name, erpID }
+//   DELETE /customers/:id                    → delete customer
 //
-// Data layout in the database:
-//   /customers/{id} → { name, erpID?, createdAt, updatedAt }
-//   /accounts/{id}  → { customerID, commonName, dns*, start?, end?, ... }
-//   /monitors/{id}  → { customerID, displayName, endpoint, jobType?, enabled, ... }
+//   GET    /accounts                         → list all accounts
+//   POST   /customers/:customerId/accounts   → create account { commonName, start, end }
+//   PATCH  /accounts/:id                     → update account { commonName, start, end }
+//   POST   /accounts/:id/reset               → reset DNS password, returns account
+//   DELETE /accounts/:id                     → delete account
 //
-// NOTE: the database rules must allow read/write for this to work
-// (Firebase console → Realtime Database → Rules, e.g. test mode).
+//   GET    /monitors                         → list all monitors
+//   POST   /customers/:customerId/monitors   → create monitor { displayName, endpoint, enabled, jobType }
+//   PATCH  /monitors/:id                     → update monitor
+//   DELETE /monitors/:id                     → delete monitor
 // =====================================================================
 
-const API_BASE = "https://domain-test-4a08f-default-rtdb.europe-west1.firebasedatabase.app";
+const API_BASE = "http://localhost:8080/api/v1"; // adjust host/port to your service
 
-async function _fb(path, options = {}) {
-  const response = await fetch(API_BASE + path + ".json", {
+async function _request(path, options = {}) {
+  const response = await fetch(API_BASE + path, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
   if (!response.ok) {
-    let detail = "";
-    try { detail = (await response.json())?.error || ""; } catch {}
-    throw new Error("Firebase-Fehler " + response.status +
-      (detail ? " (" + detail + ")" : "") + " bei " + path);
+    throw new Error("API-Fehler " + response.status + " bei " + path);
   }
-  return response.json();
+  // 204 No Content and empty bodies
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
-// Object keyed by id → array of objects with id field
-function _toArray(data) {
-  return Object.entries(data || {}).map(([id, value]) => ({ id, ...value }));
-}
-
-function _randomHex(length) {
-  return [...crypto.getRandomValues(new Uint8Array(length))]
-    .map(b => b.toString(16).padStart(2, "0")).join("").slice(0, length);
-}
-
+// Removes keys with null/undefined/empty-string values so optional
+// fields are simply omitted from the request body.
 function _compact(obj) {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && v !== "")
@@ -56,125 +49,62 @@ function _compact(obj) {
 
 const api = {
   // ----- Customers -----
-  async getCustomers() {
-    return _toArray(await _fb("/customers"));
-  },
+  getCustomers: () =>
+    _request("/customers"),
 
-  async createCustomer(name, erpID) {
-    const now = new Date().toISOString();
-    const record = _compact({ name, erpID, createdAt: now, updatedAt: now });
-    const { name: id } = await _fb("/customers", {
+  createCustomer: (name, erpID) =>
+    _request("/customers", {
       method: "POST",
-      body: JSON.stringify(record),
-    });
-    return { id, ...record };
-  },
+      body: JSON.stringify(_compact({ name, erpID })),
+    }),
 
-  async updateCustomer(id, name, erpID) {
-    const patch = { ..._compact({ name }), erpID: erpID ?? null, updatedAt: new Date().toISOString() };
-    const updated = await _fb("/customers/" + encodeURIComponent(id), {
+  updateCustomer: (id, name, erpID) =>
+    _request("/customers/" + encodeURIComponent(id), {
       method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    return { id, ...updated };
-  },
+      body: JSON.stringify(_compact({ name, erpID })),
+    }),
 
-  async deleteCustomer(id) {
-    // RTDB has no cascading delete – remove dependent records client-side
-    const [accounts, monitors] = await Promise.all([
-      this.getAccounts(), this.getMonitors(),
-    ]);
-    await Promise.all([
-      ...accounts.filter(a => a.customerID === id)
-        .map(a => _fb("/accounts/" + encodeURIComponent(a.id), { method: "DELETE" })),
-      ...monitors.filter(m => m.customerID === id)
-        .map(m => _fb("/monitors/" + encodeURIComponent(m.id), { method: "DELETE" })),
-      _fb("/customers/" + encodeURIComponent(id), { method: "DELETE" }),
-    ]);
-  },
+  deleteCustomer: (id) =>
+    _request("/customers/" + encodeURIComponent(id), { method: "DELETE" }),
 
   // ----- Accounts (domains) -----
-  async getAccounts() {
-    return _toArray(await _fb("/accounts"));
-  },
+  getAccounts: () =>
+    _request("/accounts"),
 
-  async createAccount(customerId, commonName, start, end) {
-    const now = new Date().toISOString();
-    const record = _compact({
-      customerID: customerId,
-      commonName,
-      start, end,
-      // generated client-side for testing – the real API does this itself
-      dnsSubdomain: _randomHex(8) + ".acme-dns.example.com",
-      dnsUsername: "u-" + _randomHex(8),
-      dnsPassword: _randomHex(24),
-      createdAt: now,
-      updatedAt: now,
-    });
-    const { name: id } = await _fb("/accounts", {
+  createAccount: (customerId, commonName, start, end) =>
+    _request("/customers/" + encodeURIComponent(customerId) + "/accounts", {
       method: "POST",
-      body: JSON.stringify(record),
-    });
-    return { id, ...record };
-  },
+      body: JSON.stringify(_compact({ commonName, start, end })),
+    }),
 
-  async updateAccount(id, commonName, start, end) {
-    const patch = { ..._compact({ commonName, start, end }), updatedAt: new Date().toISOString() };
-    const updated = await _fb("/accounts/" + encodeURIComponent(id), {
+  updateAccount: (id, commonName, start, end) =>
+    _request("/accounts/" + encodeURIComponent(id), {
       method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    return { id, ...updated };
-  },
+      body: JSON.stringify(_compact({ commonName, start, end })),
+    }),
 
-  async resetAccountPassword(id) {
-    const patch = { dnsPassword: _randomHex(24), updatedAt: new Date().toISOString() };
-    await _fb("/accounts/" + encodeURIComponent(id), {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    const account = await _fb("/accounts/" + encodeURIComponent(id));
-    return { id, ...account };
-  },
+  resetAccountPassword: (id) =>
+    _request("/accounts/" + encodeURIComponent(id) + "/reset", { method: "POST" }),
 
-  async deleteAccount(id) {
-    await _fb("/accounts/" + encodeURIComponent(id), { method: "DELETE" });
-  },
+  deleteAccount: (id) =>
+    _request("/accounts/" + encodeURIComponent(id), { method: "DELETE" }),
 
   // ----- Monitors -----
-  async getMonitors() {
-    return _toArray(await _fb("/monitors"));
-  },
+  getMonitors: () =>
+    _request("/monitors"),
 
-  async createMonitor(customerId, displayName, endpoint, jobType, enabled) {
-    const now = new Date().toISOString();
-    const record = {
-      ..._compact({ customerID: customerId, displayName, endpoint, jobType }),
-      enabled,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const { name: id } = await _fb("/monitors", {
+  createMonitor: (customerId, displayName, endpoint, jobType, enabled) =>
+    _request("/customers/" + encodeURIComponent(customerId) + "/monitors", {
       method: "POST",
-      body: JSON.stringify(record),
-    });
-    return { id, ...record };
-  },
+      body: JSON.stringify({ ..._compact({ displayName, endpoint, jobType }), enabled }),
+    }),
 
-  async updateMonitor(id, displayName, endpoint, jobType, enabled) {
-    const patch = {
-      ..._compact({ displayName, endpoint, jobType }),
-      enabled,
-      updatedAt: new Date().toISOString(),
-    };
-    const updated = await _fb("/monitors/" + encodeURIComponent(id), {
+  updateMonitor: (id, displayName, endpoint, jobType, enabled) =>
+    _request("/monitors/" + encodeURIComponent(id), {
       method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    return { id, ...updated };
-  },
+      body: JSON.stringify({ ..._compact({ displayName, endpoint, jobType }), enabled }),
+    }),
 
-  async deleteMonitor(id) {
-    await _fb("/monitors/" + encodeURIComponent(id), { method: "DELETE" });
-  },
+  deleteMonitor: (id) =>
+    _request("/monitors/" + encodeURIComponent(id), { method: "DELETE" }),
 };

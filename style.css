@@ -7,6 +7,7 @@
   --slate-200: #e2e8f0;
   --slate-100: #f1f5f9;
   --slate-50:  #f8fafc;
+  --teal-700:  #0f766e;
   --teal-600:  #0d9488;
   --teal-500:  #14b8a6;
   --teal-400:  #2dd4bf;
@@ -27,14 +28,11 @@ body {
 }
 
 /* ---------- Kopfzeile ---------- */
-header {
-  background: var(--slate-900);
-  color: #fff;
-}
+header { background: var(--slate-900); color: #fff; }
 .header-inner {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -42,7 +40,7 @@ header {
   flex-wrap: wrap;
 }
 header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
-#statistik { color: var(--slate-400); font-size: 0.85rem; margin-top: 2px; }
+#stats { color: var(--slate-400); font-size: 0.85rem; margin-top: 2px; }
 
 /* ---------- Buttons ---------- */
 button {
@@ -50,25 +48,17 @@ button {
   cursor: pointer;
   border: none;
   border-radius: 8px;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.btn-primaer {
-  background: var(--teal-500);
-  color: var(--slate-900);
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: 9px 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.btn-primaer:hover { background: var(--teal-400); }
 .btn-dunkel {
   background: var(--slate-900);
   color: #fff;
   font-weight: 500;
   font-size: 0.875rem;
   padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .btn-dunkel:hover { background: var(--slate-700); }
 .btn-dunkel:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -81,17 +71,29 @@ button {
   padding: 7px 12px;
 }
 .btn-zuweisen:hover { background: var(--teal-50); }
+.btn-gefahr {
+  background: #fff;
+  color: var(--red-600);
+  border: 1px solid #fecaca;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 7px 12px;
+}
+.btn-gefahr:hover { background: #fef2f2; }
+.btn-loeschen { background: none; color: var(--slate-300); padding: 4px; line-height: 0; }
+.btn-loeschen:hover { color: var(--red-600); }
+.btn-bearbeiten { background: none; color: var(--slate-300); padding: 4px; line-height: 0; }
+.btn-bearbeiten:hover { color: var(--teal-600); }
 
-/* ---------- Layout ---------- */
+/* ---------- Grundlayout ---------- */
 main {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
 .karte {
   background: #fff;
   border: 1px solid var(--slate-200);
@@ -99,18 +101,19 @@ main {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
-/* ---------- Formular: neuer Kunde ---------- */
-#neuFormular { padding: 16px; display: none; }
-#neuFormular.offen { display: block; }
-#neuFormular h2 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--slate-900);
+/* Zweispaltiges Layout: Liste links, Details rechts */
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: start;
 }
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ---------- Formular: neuer Kunde (immer sichtbar) ---------- */
+#createForm { padding: 16px; }
 .formular-zeile { display: flex; gap: 8px; flex-wrap: wrap; }
 .formular-zeile input { flex: 1 1 200px; }
 
@@ -125,7 +128,7 @@ input[type="text"], input[type="email"] {
 input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25); }
 
 /* ---------- Suche ---------- */
-.suche-wrap { position: relative; }
+.suche-wrap { position: relative; margin-bottom: 8px; }
 .suche-wrap svg {
   position: absolute;
   left: 12px;
@@ -134,15 +137,15 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   color: var(--slate-400);
   pointer-events: none;
 }
-#suche {
+#search {
   width: 100%;
-  padding: 11px 36px 11px 36px;
+  padding: 10px 36px 10px 36px;
   border: 1px solid var(--slate-200);
   border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
-#sucheLeeren {
+#clearSearch {
   position: absolute;
   right: 8px;
   top: 50%;
@@ -153,25 +156,59 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   display: none;
   line-height: 0;
 }
-#sucheLeeren:hover { color: var(--slate-700); }
+#clearSearch:hover { color: var(--slate-700); }
 
-/* ---------- Kundenkarte ---------- */
-.kunde-karte { margin-bottom: 16px; }
+/* ---------- Kundenliste (linke Spalte) ---------- */
+.kunden-nav {
+  background: #fff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.nav-eintrag {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  background: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--slate-100);
+  padding: 10px 14px;
+}
+.nav-eintrag:last-child { border-bottom: none; }
+.nav-eintrag:hover { background: var(--slate-50); }
+.nav-eintrag.aktiv {
+  background: var(--teal-50);
+  box-shadow: inset 3px 0 0 var(--teal-500);
+}
+.nav-name { font-size: 0.875rem; font-weight: 600; color: var(--slate-900); }
+.nav-eintrag.aktiv .nav-name { color: var(--teal-800); }
+.nav-meta { font-size: 0.72rem; color: var(--slate-500); }
+.nav-hinweis {
+  padding: 16px;
+  font-size: 0.8rem;
+  color: var(--slate-500);
+  background: #fff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius);
+}
+
+/* ---------- Detailansicht (rechte Spalte) ---------- */
 .kunde-kopf {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   padding: 16px 16px 0;
 }
-.kunde-kopf h3 { font-size: 1rem; font-weight: 600; }
+.kunde-kopf h3 { font-size: 1.05rem; font-weight: 600; }
 .kunde-kontakt { font-size: 0.75rem; color: var(--slate-500); margin-top: 2px; }
-.btn-loeschen {
-  background: none;
-  color: var(--slate-300);
-  padding: 4px;
-  line-height: 0;
-}
-.btn-loeschen:hover { color: var(--red-600); }
+.kopf-aktionen { display: flex; gap: 2px; }
+.edit-formular { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.edit-formular input { flex: 1 1 160px; }
 
 .domain-liste {
   display: flex;
@@ -189,159 +226,19 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   color: var(--teal-800);
   border: 1px solid var(--teal-200);
   border-radius: 999px;
-  padding: 4px 4px 4px 10px;
+  padding: 5px 12px;
   font-size: 0.75rem;
   font-weight: 500;
-}
-.domain-chip button {
-  background: none;
-  color: var(--teal-800);
-  border-radius: 999px;
-  padding: 3px;
-  line-height: 0;
-}
-.domain-chip button:hover { background: var(--teal-200); }
-
-.zuweisen-bereich { padding: 12px 16px 16px; }
-.zuweisen-zeile { display: flex; gap: 8px; }
-.zuweisen-zeile input {
-  flex: 1;
-  background: var(--slate-50);
-  border-color: var(--slate-200);
-  padding: 7px 12px;
-}
-.zuweisen-zeile input:focus { background: #fff; }
-
-.fehler {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--red-600);
-  font-size: 0.75rem;
-  margin-top: 6px;
-}
-.fehler:empty { display: none; }
-
-.leer-hinweis {
-  padding: 40px;
-  text-align: center;
-  color: var(--slate-500);
-  font-size: 0.875rem;
-}
-
-@media (max-width: 480px) {
-  .header-inner, main { padding: 16px; }
-}
-
-/* ---------- Tags: Checkboxen im Formular ---------- */
-.tag-checkbox-gruppe {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0;
-}
-.tag-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: var(--slate-700);
-  background: var(--slate-50);
-  border: 1px solid var(--slate-200);
-  border-radius: 999px;
-  padding: 6px 12px;
   cursor: pointer;
-  user-select: none;
-  transition: background 0.15s, border-color 0.15s;
 }
-.tag-checkbox:hover { border-color: var(--teal-400); }
-.tag-checkbox input { accent-color: var(--teal-600); cursor: pointer; }
-.tag-checkbox:has(input:checked) {
-  background: var(--teal-50);
-  border-color: var(--teal-400);
-  color: var(--teal-800);
-  font-weight: 500;
-}
-
-/* ---------- Tags: Anzeige auf der Kundenkarte ---------- */
-.tag-liste {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-.tag-chip {
-  font-size: 0.68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--slate-500);
-  background: var(--slate-100);
-  border: 1px solid var(--slate-200);
-  border-radius: 4px;
-  padding: 2px 7px;
-}
-
-/* ---------- Tags: Filterleiste ---------- */
-.tag-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.filter-label {
-  font-size: 0.8rem;
-  color: var(--slate-500);
-  margin-right: 2px;
-}
-.tag-filter {
-  font-size: 0.8rem;
-  background: #fff;
-  color: var(--slate-700);
-  border: 1px solid var(--slate-200);
-  border-radius: 999px;
-  padding: 6px 14px;
-}
-.tag-filter:hover { border-color: var(--teal-400); }
-.tag-filter.aktiv {
-  background: var(--teal-600);
-  border-color: var(--teal-600);
-  color: #fff;
-  font-weight: 500;
-}
-.tag-filter-reset {
-  font-size: 0.8rem;
-  background: none;
-  color: var(--slate-500);
-  text-decoration: underline;
-  padding: 6px 8px;
-}
-.tag-filter-reset:hover { color: var(--slate-900); }
-
-/* ---------- Kopf-Aktionen & Inline-Bearbeitung ---------- */
-.kopf-aktionen { display: flex; gap: 2px; }
-.btn-bearbeiten {
-  background: none;
-  color: var(--slate-300);
-  padding: 4px;
-  line-height: 0;
-}
-.btn-bearbeiten:hover { color: var(--teal-600); }
-.edit-formular {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
-}
-.edit-formular input { flex: 1 1 160px; }
-
-/* ---------- Domain-Chip als Button / Account-Details ---------- */
-.domain-chip { cursor: pointer; }
+.domain-chip:hover { border-color: var(--teal-400); }
 .domain-chip.aktiv {
   background: var(--teal-600);
   border-color: var(--teal-600);
   color: #fff;
 }
+
+/* Account-Detailpanel */
 .account-detail {
   margin: 10px 16px 0;
   background: var(--slate-50);
@@ -366,23 +263,19 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   word-break: break-all;
 }
 .detail-hinweis { color: var(--slate-500); font-size: 0.75rem; }
-.detail-aktionen {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-.btn-gefahr {
-  background: #fff;
-  color: var(--red-600);
-  border: 1px solid #fecaca;
-  font-weight: 500;
-  font-size: 0.875rem;
+.detail-aktionen { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+/* Domain zuweisen */
+.zuweisen-bereich { padding: 12px 16px 16px; }
+.zuweisen-zeile { display: flex; gap: 8px; }
+.zuweisen-zeile input {
+  flex: 1;
+  background: var(--slate-50);
+  border-color: var(--slate-200);
   padding: 7px 12px;
 }
-.btn-gefahr:hover { background: #fef2f2; }
+.zuweisen-zeile input:focus { background: #fff; }
 
-/* ---------- Gültigkeitszeitraum ---------- */
 .zeitraum-toggle {
   background: none;
   color: var(--slate-500);
@@ -390,13 +283,8 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   padding: 6px 0 0;
   text-align: left;
 }
-.zeitraum-toggle:hover { color: var(--teal-700, #0f766e); }
-.zeitraum-zeile {
-  display: flex;
-  gap: 12px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
+.zeitraum-toggle:hover { color: var(--teal-700); }
+.zeitraum-zeile { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
 .zeitraum-zeile label {
   display: inline-flex;
   align-items: center;
@@ -413,11 +301,18 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   background: var(--slate-50);
 }
 
-/* ---------- Monitore ---------- */
-.monitor-bereich {
-  border-top: 1px solid var(--slate-100);
-  padding: 8px 16px 12px;
+.fehler {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--red-600);
+  font-size: 0.75rem;
+  margin-top: 6px;
 }
+.fehler:empty { display: none; }
+
+/* ---------- Monitore ---------- */
+.monitor-bereich { border-top: 1px solid var(--slate-100); padding: 8px 16px 12px; }
 .monitor-toggle {
   background: none;
   color: var(--slate-500);
@@ -449,16 +344,35 @@ input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 2px rgba(20, 184,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.monitor-formular {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
+.monitor-formular { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .monitor-formular input {
   flex: 1 1 140px;
   background: var(--slate-50);
   border-color: var(--slate-200);
   padding: 7px 10px;
   font-size: 0.8rem;
+}
+
+/* ---------- Sonstiges ---------- */
+.leer-hinweis {
+  padding: 40px;
+  text-align: center;
+  color: var(--slate-500);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 480px) {
+  .header-inner, main { padding: 16px; }
+}
+
+#sysobLogo {
+  width: 150px;
+  height: 37px;
+}
+
+#headerWrapper {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
 }
