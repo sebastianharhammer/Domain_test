@@ -22,8 +22,8 @@
   <!-- Neuer Kunde – immer sichtbar -->
   <div id="createForm" class="karte">
     <div class="formular-zeile">
-      <input type="text" id="newName" placeholder="Firmenname" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
-      <input type="text" id="newErpId" placeholder="ERP-ID" inputmode="numeric" onkeydown="if(event.key==='Enter')createCustomer()">
+      <input type="text" id="newName" placeholder="Firmenname *" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
+      <input type="text" id="newErpId" placeholder="ERP-ID * (Zahl)" inputmode="numeric" oninput="validateCreateForm()" onkeydown="if(event.key==='Enter')createCustomer()">
       <button class="btn-dunkel" id="btnSave" onclick="createCustomer()" disabled>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Kunde anlegen

@@ -48,22 +48,30 @@ function formatDate(value) {
 // Create / edit / delete customer
 // ------------------------------------------------------------------
 
+// The backend requires the ERP-ID (validate:"required,gt=0"),
+// so the form treats it as mandatory too.
 function validateCreateForm() {
+  const nameOk = document.getElementById("newName").value.trim() !== "";
+  const erp = parseErpId(document.getElementById("newErpId").value);
   document.getElementById("btnSave").disabled =
-    document.getElementById("newName").value.trim() === "";
+    !nameOk || !erp.ok || erp.value === null;
 }
 
 function parseErpId(raw) {
   if (raw.trim() === "") return { ok: true, value: null };
   const n = parseInt(raw, 10);
-  return Number.isNaN(n) ? { ok: false } : { ok: true, value: n };
+  if (Number.isNaN(n) || n <= 0) return { ok: false };
+  return { ok: true, value: n };
 }
 
 async function createCustomer() {
   const name = document.getElementById("newName").value.trim();
   if (!name) return;
   const erp = parseErpId(document.getElementById("newErpId").value);
-  if (!erp.ok) { showGlobalError("Die ERP-ID muss eine Zahl sein."); return; }
+  if (!erp.ok || erp.value === null) {
+    showGlobalError("Die ERP-ID ist ein Pflichtfeld und muss eine Zahl größer 0 sein.");
+    return;
+  }
   try {
     const newCustomer = await api.createCustomer(name, erp.value);
     customers.push(newCustomer);
@@ -92,7 +100,10 @@ async function saveCustomer(id) {
   const name = document.getElementById("editName-" + CSS.escape(id)).value.trim();
   if (!name) { errorMessages[id] = "Der Name darf nicht leer sein."; render(); return; }
   const erp = parseErpId(document.getElementById("editErpId-" + CSS.escape(id)).value);
-  if (!erp.ok) { errorMessages[id] = "Die ERP-ID muss eine Zahl sein."; render(); return; }
+  if (!erp.ok || erp.value === null) {
+    errorMessages[id] = "Die ERP-ID ist ein Pflichtfeld und muss eine Zahl größer 0 sein.";
+    render(); return;
+  }
   try {
     const updated = await api.updateCustomer(id, name, erp.value);
     customers = customers.map(c => (c.id === id ? updated : c));
